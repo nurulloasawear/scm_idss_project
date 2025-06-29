@@ -3,9 +3,9 @@ __pycache__/
 *.pyc 
 venv/ 
  
-# Django 
-*.log 
-db.sqlite3* 
+# # Django 
+# *.log 
+# db.sqlite3* 
  
-# Environment 
-.env*
+# # Environment 
+# .env*
