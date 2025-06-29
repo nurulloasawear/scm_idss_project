@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buyurtma Detallari - SCM-IDSS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style> body { background-color: #f8f9fa; } .details-list .list-group-item { border: none; padding-left: 0; padding-right: 0; } </style>
+</head>
+<body>
+    <div class="container my-5">
+        <div id="loading-spinner" class="text-center mt-5"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div></div>
+        <div id="error-alert" class="alert alert-danger d-none"></div>
+        <div id="order-content" class="d-none">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Buyurtma #<span id="order-id-title"></span></h4>
+                    <span class="badge rounded-pill fs-6" id="order-status-badge"></span>
+                </div>
+                <div class="card-body">
+                    <div class="row"><div class="col-md-4"><strong>Mijoz ID:</strong><p id="customer-id" class="text-muted"></p></div><div class="col-md-4"><strong>Buyurtma Sanasi:</strong><p id="order-date" class="text-muted"></p></div><div class="col-md-4"><strong>Umumiy Summa:</strong><p id="total-amount" class="fw-bold fs-5"></p></div></div>
+                    <div class="row mt-3"><div class="col-md-12"><strong>Yetkazib Berish Manzili:</strong><p id="shipping-address" class="text-muted"></p></div></div>
+                </div>
+            </div>
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light"><h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Buyurtma Tarkibi</h5></div>
+                <div class="card-body p-0"><div class="table-responsive"><table class="table mb-0"><thead class="table-light"><tr><th>Mahsulot ID</th><th class="text-end">Miqdori</th><th class="text-end">Birlik Narxi</th><th class="text-end">Jami</th></tr></thead><tbody id="order-items-table"></tbody></table></div></div>
+            </div>
+            <div class="card shadow-sm">
+                <div class="card-header bg-light"><h5 class="mb-0"><i class="bi bi-truck me-2"></i>Jo'natma Holati</h5></div>
+                <div class="card-body" id="shipment-info"><p class="text-muted text-center">Jo'natma ma'lumotlari yuklanmoqda...</p></div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = localStorage.getItem('accessToken');
+            if (!accessToken) { window.location.href = 'login.html'; return; }
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('id');
+
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const orderContent = document.getElementById('order-content');
+            const errorAlert = document.getElementById('error-alert');
+
+            if (!orderId) { errorAlert.textContent = 'Buyurtma IDsi topilmadi.'; errorAlert.classList.remove('d-none'); loadingSpinner.classList.add('d-none'); return; }
+
+            const headers = { 'Authorization': `Bearer ${accessToken}` };
+            const ORDER_API_URL = `http://localhost:8090/api/public/orders/${orderId}/`;
+            const LOGISTICS_API_URL = `http://localhost:9000/api/public/shipments/?search=${orderId}`;
+
+            const fetchDetails = async () => {
+                try {
+                    const [orderRes, shipmentRes] = await Promise.all([
+                        fetch(ORDER_API_URL, { headers }),
+                        fetch(LOGISTICS_API_URL, { headers })
+                    ]);
+                    if (!orderRes.ok) throw new Error(`Buyurtmani yuklashda xatolik: ${orderRes.statusText}`);
+                    
+                    const order = await orderRes.json();
+                    renderOrder(order);
+                    
+                    if (shipmentRes.ok) {
+                        const shipmentData = await shipmentRes.json();
+                        if(shipmentData.results && shipmentData.results.length > 0) renderShipment(shipmentData.results[0]);
+                        else document.getElementById('shipment-info').innerHTML = '<p class="text-muted text-center">Bu buyurtma uchun jo\'natma hali yaratilmagan.</p>';
+                    } else {
+                        document.getElementById('shipment-info').innerHTML = '<p class="text-warning text-center">Jo\'natma ma\'lumotini yuklab bo\'lmadi.</p>';
+                    }
+                    loadingSpinner.classList.add('d-none');
+                    orderContent.classList.remove('d-none');
+                } catch (error) {
+                    errorAlert.textContent = error.message;
+                    errorAlert.classList.remove('d-none');
+                    loadingSpinner.classList.add('d-none');
+                }
+            };
+            const renderOrder = (order) => {
+                document.getElementById('order-id-title').textContent = order.id.substring(0, 8).toUpperCase();
+                document.getElementById('customer-id').textContent = order.customer_id;
+                document.getElementById('order-date').textContent = new Date(order.order_date).toLocaleString('uz-UZ');
+                document.getElementById('total-amount').textContent = `$${parseFloat(order.total_amount).toFixed(2)}`;
+                document.getElementById('shipping-address').textContent = order.shipping_address;
+                const statusBadge = document.getElementById('order-status-badge');
+                statusBadge.textContent = order.order_status_display;
+                const statusColors = { PENDING: 'bg-warning text-dark', PROCESSING: 'bg-info text-dark', SHIPPED: 'bg-primary', DELIVERED: 'bg-success', CANCELLED: 'bg-danger' };
+                statusBadge.className = `badge rounded-pill fs-6 ${statusColors[order.order_status] || 'bg-secondary'}`;
+                const itemsTable = document.getElementById('order-items-table');
+                itemsTable.innerHTML = '';
+                order.items.forEach(item => {
+                    const totalPrice = (parseFloat(item.unit_price) * parseInt(item.quantity)).toFixed(2);
+                    itemsTable.innerHTML += `<tr><td>${item.product_id}</td><td class="text-end">${item.quantity} dona</td><td class="text-end">$${parseFloat(item.unit_price).toFixed(2)}</td><td class="text-end fw-bold">$${totalPrice}</td></tr>`;
+                });
+            };
+            const renderShipment = (shipment) => {
+                const shipmentInfoDiv = document.getElementById('shipment-info');
+                shipmentInfoDiv.innerHTML = `<div class="row">
+                        <div class="col-sm-6"><strong>Tashuvchi:</strong><p class="text-muted">${shipment.carrier_name || 'N/A'}</p></div>
+                        <div class="col-sm-6"><strong>Kuzatuv Raqami:</strong><p class="text-muted">${shipment.tracking_number || 'N/A'}</p></div>
+                        <div class="col-sm-6"><strong>Holati:</strong><p class="text-muted fw-bold">${shipment.status_display}</p></div>
+                        <div class="col-sm-6"><strong>Kutilayotgan Sana:</strong><p class="text-muted">${shipment.estimated_delivery_at ? new Date(shipment.estimated_delivery_at).toLocaleDateString('uz-UZ') : 'Noma\'lum'}</p></div>
+                    </div>`;
+            };
+            fetchDetails();
+        });
+    </script>
+</body>
+</html>

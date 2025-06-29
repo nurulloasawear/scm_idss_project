@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boshqaruv Paneli - SCM-IDSS</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            width: 280px;
+            min-height: 100vh;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link {
+            color: #adb5bd;
+            font-size: 0.95rem;
+            padding: 0.75rem 1.5rem;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #495057;
+            border-radius: 0.5rem;
+        }
+        .sidebar .nav-link .bi {
+            margin-right: 1rem;
+        }
+        .sidebar .sidebar-heading {
+            font-size: .75rem;
+            text-transform: uppercase;
+        }
+        .content {
+            margin-left: 280px;
+            transition: all 0.3s;
+        }
+        /* Sidebar yopilgan holati uchun */
+        body.sidebar-toggled .sidebar {
+            margin-left: -280px;
+        }
+        body.sidebar-toggled .content {
+            margin-left: 0;
+        }
+        .kpi-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15)!important;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Yon Menyu (Sidebar) -->
+        <div class="sidebar bg-dark p-3 d-flex flex-column">
+            <div>
+                <a href="index.html" class="d-flex align-items-center mb-4 text-white text-decoration-none">
+                    <i class="bi bi-box-seam fs-4 me-2"></i>
+                    <span class="fs-5 fw-semibold">SCM-IDSS</span>
+                </a>
+                <hr class="text-secondary">
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item">
+                        <a href="index.html" class="nav-link active" aria-current="page">
+                            <i class="bi bi-speedometer2"></i>Boshqaruv Paneli
+                        </a>
+                    </li>
+                    <li class="pt-2">
+                        <div class="sidebar-heading px-3 mt-2 mb-1 text-muted">INVENTAR</div>
+                        <a href="products.html" class="nav-link">
+                            <i class="bi bi-box"></i>Mahsulotlar
+                        </a>
+                        <a href="inventory.html" class="nav-link">
+                            <i class="bi bi-archive"></i>Inventar
+                        </a>
+                    </li>
+                    <li class="pt-2">
+                        <div class="sidebar-heading px-3 mt-2 mb-1 text-muted">BUYURTMALAR</div>
+                        <a href="orders.html" class="nav-link">
+                            <i class="bi bi-clipboard-data"></i>Barcha Buyurtmalar
+                        </a>
+                         <a href="my-orders.html" class="nav-link">
+                            <i class="bi bi-person-lines-fill"></i>Mening Buyurtmalarim
+                        </a>
+                        <a href="create-order.html" class="nav-link">
+                            <i class="bi bi-plus-circle"></i>Yangi Buyurtma
+                        </a>
+                        <a href="suppliers.html" class="nav-link">
+                            <i class="bi bi-building"></i>Yetkazib Beruvchilar
+                        </a>
+                    </li>
+                    <li class="pt-2">
+                        <div class="sidebar-heading px-3 mt-2 mb-1 text-muted">LOGISTIKA</div>
+                         <a href="shipments.html" class="nav-link">
+                            <i class="bi bi-truck"></i>Jo'natmalar
+                        </a>
+                        <a href="carriers.html" class="nav-link">
+                            <i class="bi bi-airplane"></i>Tashuvchilar
+                        </a>
+                    </li>
+                    <li class="pt-2">
+                        <div class="sidebar-heading px-3 mt-2 mb-1 text-muted">TAHLIL</div>
+                        <a href="reports.html" class="nav-link">
+                            <i class="bi bi-file-earmark-bar-graph"></i>Hisobotlar
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <hr class="text-secondary">
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
+                    <img src="https://placehold.co/32x32/EBF4FF/7645D9?text=U" alt="" width="32" height="32" class="rounded-circle me-2">
+                    <strong id="user-name-sidebar">Foydalanuvchi</strong>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser">
+                    <li><a class="dropdown-item" href="admin-users.html">Foydalanuvchilar</a></li>
+                    <li><a class="dropdown-item" href="profile.html">Profil</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" id="logout-button" href="#">Chiqish</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Asosiy Kontent -->
+        <div class="content p-4">
+            <!-- Yuqori Panel (Navbar) -->
+            <nav class="navbar navbar-expand-lg navbar-light bg-white rounded-3 shadow-sm mb-4">
+                <div class="container-fluid">
+                    <button class="btn btn-light" id="sidebarToggle"><i class="bi bi-list"></i></button>
+                    <h5 class="ms-3 mb-0" id="welcome-message">Xush kelibsiz!</h5>
+                    <div class="ms-auto">
+                        <form class="d-flex">
+                            <input class="form-control me-2" type="search" placeholder="Qidiruv..." aria-label="Search">
+                            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
+                        </form>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- KPI Kartalari -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-6 col-xl-3">
+                    <div class="card kpi-card shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3">
+                                <i class="bi bi-boxes fs-2 text-primary"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted">Jami Mahsulotlar</h6>
+                                <h3 class="fw-bold" id="kpi-products-count">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card kpi-card shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                             <div class="bg-success bg-opacity-10 p-3 rounded-3 me-3">
+                                <i class="bi bi-cart4 fs-2 text-success"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted">Jami Buyurtmalar</h6>
+                                <h3 class="fw-bold" id="kpi-orders-count">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card kpi-card shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                             <div class="bg-warning bg-opacity-10 p-3 rounded-3 me-3">
+                                <i class="bi bi-truck-front fs-2 text-warning"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted">Yo'ldagi Jo'natmalar</h6>
+                                <h3 class="fw-bold" id="kpi-shipments-count">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                     <div class="card kpi-card shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                             <div class="bg-info bg-opacity-10 p-3 rounded-3 me-3">
+                                <i class="bi bi-person-check fs-2 text-info"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted">Faol Foydalanuvchilar</h6>
+                                <h3 class="fw-bold" id="kpi-users-count">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grafiklar -->
+            <div class="row g-4">
+                <div class="col-lg-7">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">Oylik Buyurtmalar Tahlili</div>
+                        <div class="card-body">
+                            <canvas id="monthlyOrdersChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">Mahsulot Kategoriyalari</div>
+                        <div class="card-body d-flex justify-content-center align-items-center">
+                             <canvas id="categoryPieChart" style="max-width: 300px; max-height: 300px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js JS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = localStorage.getItem('accessToken');
+
+            // Agar token bo'lmasa, login sahifasiga o'tkazish
+            if (!accessToken) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // API manzillari
+            const API_ENDPOINTS = {
+                profile: 'http://localhost:9001/api/auth/me/',
+                products: 'http://localhost:8080/api/public/products/',
+                orders: 'http://localhost:8090/api/admin/orders/', // Admin endpointidan umumiy sonni olish uchun
+                shipments: 'http://localhost:9000/api/public/shipments/',
+                users: 'http://localhost:9001/api/admin/users/'
+            };
+            
+            // So'rovlar uchun standart header
+            const headers = {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            };
+
+            // Foydalanuvchi ma'lumotlarini olish va sahifaga joylash
+            const fetchUserProfile = async () => {
+                try {
+                    const response = await fetch(API_ENDPOINTS.profile, { headers });
+                    if (!response.ok) throw new Error('Profilni yuklab bolmadi.');
+                    const user = await response.json();
+                    document.getElementById('welcome-message').textContent = `Xush kelibsiz, ${user.first_name || user.username}!`;
+                    document.getElementById('user-name-sidebar').textContent = user.username;
+                } catch (error) {
+                    console.error('Error fetching profile:', error);
+                    // Agar token eskirgan bo'lsa, tizimdan chiqarish
+                    if (error.response && error.response.status === 401) {
+                        logout();
+                    }
+                }
+            };
+
+            // KPI'larni yuklash
+            const fetchKPIs = async () => {
+                try {
+                    // Bu yerda Promise.all yordamida bir vaqtda bir nechta so'rov yuboramiz
+                    const [productsRes, ordersRes, shipmentsRes, usersRes] = await Promise.all([
+                        fetch(API_ENDPOINTS.products, { headers }),
+                        fetch(API_ENDPOINTS.orders, { headers }),
+                        fetch(API_ENDPOINTS.shipments, { headers }),
+                        fetch(API_ENDPOINTS.users, { headers })
+                    ]);
+
+                    const productsData = await productsRes.json();
+                    const ordersData = await ordersRes.json();
+                    const shipmentsData = await shipmentsRes.json();
+                    const usersData = await usersRes.json();
+                    
+                    document.getElementById('kpi-products-count').textContent = productsData.count || productsData.length || 0;
+                    document.getElementById('kpi-orders-count').textContent = ordersData.count || 2;
+                    document.getElementById('kpi-shipments-count').textContent = shipmentsData.filter(s => s.status_display === "Yo'lda").length || 0;
+                    document.getElementById('kpi-users-count').textContent = usersData.count || 2;
+
+                } catch (error) {
+                    console.error('Error fetching KPIs:', error);
+                }
+            };
+
+            // Grafiklar uchun funksiya
+            const renderCharts = () => {
+                // Oylik buyurtmalar grafigi (hozircha statik ma'lumotlar)
+                const monthlyOrdersCtx = document.getElementById('monthlyOrdersChart').getContext('2d');
+                new Chart(monthlyOrdersCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn'],
+                        datasets: [{
+                            label: 'Buyurtmalar Soni',
+                            data: [65, 59, 80, 81, 56, 55],
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+
+                // Kategoriyalar grafigi (hozircha statik ma'lumotlar)
+                const categoryPieCtx = document.getElementById('categoryPieChart').getContext('2d');
+                new Chart(categoryPieCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Elektronika', 'Mebel', 'Kiyim', 'Oziq-ovqat'],
+                        datasets: [{
+                            label: 'Kategoriyalar',
+                            data: [300, 50, 100, 80],
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.7)',
+                                'rgba(54, 162, 235, 0.7)',
+                                'rgba(255, 206, 86, 0.7)',
+                                'rgba(75, 192, 192, 0.7)'
+                            ]
+                        }]
+                    },
+                     options: { responsive: true }
+                });
+            };
+
+            // Chiqish funksiyasi
+            const logout = () => {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                window.location.href = 'login.html';
+            };
+
+            // Sidebar ochish/yopish
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', event => {
+                    event.preventDefault();
+                    document.body.classList.toggle('sidebar-toggled');
+                });
+            }
+
+            // Chiqish tugmasi
+            document.getElementById('logout-button').addEventListener('click', (e) => {
+                e.preventDefault();
+                logout();
+            });
+
+            // Sahifa yuklanganda barcha funksiyalarni ishga tushirish
+            fetchUserProfile();
+            fetchKPIs();
+            renderCharts();
+        });
+    </script>
+</body>
+</html>

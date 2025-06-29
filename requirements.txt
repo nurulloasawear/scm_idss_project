@@ -1,0 +1,10 @@
+django 
+djangorestframework 
+psycopg2-binary 
+pika 
+python-dotenv 
+celery 
+redis 
+requests
+django-celery-results
+django-celery-beat

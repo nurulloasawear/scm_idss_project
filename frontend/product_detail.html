@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mahsulot Detallari - SCM-IDSS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style> body { background-color: #f8f9fa; } .product-image { max-width: 100%; height: auto; border-radius: 0.5rem; } .details-list .list-group-item { border: none; padding-left: 0; padding-right: 0; } </style>
+</head>
+<body>
+    <div class="container my-5">
+        <div id="loading-spinner" class="text-center mt-5"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div></div>
+        <div id="error-alert" class="alert alert-danger d-none"></div>
+        <div id="product-content" class="card shadow-sm d-none">
+            <div class="card-body p-4">
+                <div class="row">
+                    <div class="col-lg-5 mb-4 mb-lg-0"><img id="product-image" src="https://placehold.co/600x600/EBF4FF/7645D9?text=Mahsulot" class="product-image" alt="Mahsulot rasmi"></div>
+                    <div class="col-lg-7">
+                        <h1 class="fw-bold mb-3" id="product-name"></h1>
+                        <div class="d-flex align-items-center mb-3"><span class="badge bg-secondary me-2" id="product-sku"></span> <span class="badge bg-info" id="product-category"></span></div>
+                        <p class="lead" id="product-description"></p>
+                        <div class="mb-4"><span class="fs-2 fw-bold text-primary" id="product-price"></span></div>
+                        <ul class="list-group list-group-flush details-list"><li class="list-group-item d-flex justify-content-between"><strong>Og'irligi (kg):</strong> <span id="product-weight"></span></li><li class="list-group-item d-flex justify-content-between"><strong>Holati:</strong> <span id="product-status" class="text-success"></span></li></ul>
+                    </div>
+                </div>
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <ul class="nav nav-tabs" id="myTab" role="tablist">
+                            <li class="nav-item" role="presentation"><button class="nav-link active" id="characteristics-tab" data-bs-toggle="tab" data-bs-target="#characteristics-pane">Xususiyatlari</button></li>
+                            <li class="nav-item" role="presentation"><button class="nav-link" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane">Ombordagi Holati</button></li>
+                        </ul>
+                        <div class="tab-content pt-4" id="myTabContent">
+                            <div class="tab-pane fade show active" id="characteristics-pane"><ul class="list-group" id="characteristics-list"></ul></div>
+                            <div class="tab-pane fade" id="inventory-pane"><table class="table"><thead><tr><th>Ombor Nomi</th><th class="text-end">Mavjud Miqdor</th></tr></thead><tbody id="inventory-list"></tbody></table></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = localStorage.getItem('accessToken');
+            if (!accessToken) { window.location.href = 'login.html'; return; }
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const productId = urlParams.get('id');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const productContent = document.getElementById('product-content');
+            const errorAlert = document.getElementById('error-alert');
+
+            if (!productId) { errorAlert.textContent = 'Mahsulot IDsi topilmadi.'; errorAlert.classList.remove('d-none'); loadingSpinner.classList.add('d-none'); return; }
+
+            const API = {
+                PRODUCTS: 'http://localhost:8080/api/public/products/',
+                INVENTORY: 'http://localhost:8080/api/public/inventory/'
+            };
+            const headers = { 'Authorization': `Bearer ${accessToken}` };
+            
+            const fetchDetails = async () => {
+                try {
+                    const [productRes, inventoryRes] = await Promise.all([
+                        fetch(`${API.PRODUCTS}${productId}/`, { headers }),
+                        fetch(`${API.INVENTORY}?product_id=${productId}`, { headers })
+                    ]);
+                    if (!productRes.ok) throw new Error(`Mahsulotni yuklashda xatolik: ${productRes.statusText}`);
+                    
+                    const product = await productRes.json();
+                    renderProduct(product);
+                    
+                    if (inventoryRes.ok) {
+                        const inventoryData = await inventoryRes.json();
+                        renderInventory(inventoryData.results || []);
+                    } else {
+                        document.getElementById('inventory-list').innerHTML = '<tr><td colspan="2" class="text-center text-warning">Inventar ma\'lumotini yuklab bo\'lmadi.</td></tr>';
+                    }
+                    loadingSpinner.classList.add('d-none');
+                    productContent.classList.remove('d-none');
+                } catch (error) {
+                    errorAlert.textContent = error.message;
+                    errorAlert.classList.remove('d-none');
+                    loadingSpinner.classList.add('d-none');
+                }
+            };
+            const renderProduct = (p) => {
+                document.title = `${p.name} - Detallar`;
+                document.getElementById('product-name').textContent = p.name;
+                document.getElementById('product-sku').textContent = `SKU: ${p.sku}`;
+                document.getElementById('product-category').textContent = p.category_name || 'N/A';
+                document.getElementById('product-description').textContent = p.description || 'Tavsif mavjud emas.';
+                document.getElementById('product-price').textContent = `$${p.price}`;
+                document.getElementById('product-weight').textContent = `${p.weight_kg || 'N/A'} kg`;
+                document.getElementById('product-status').textContent = p.lifecycle_status || 'active';
+                const characteristicsList = document.getElementById('characteristics-list');
+                characteristicsList.innerHTML = '';
+                for (const key in p.characteristics) {
+                    characteristicsList.innerHTML += `<li class="list-group-item">${key.replace(/_/g, ' ')}: <strong>${p.characteristics[key]}</strong></li>`;
+                }
+            };
+            const renderInventory = (items) => {
+                const inventoryList = document.getElementById('inventory-list');
+                inventoryList.innerHTML = '';
+                if (!items.length) { inventoryList.innerHTML = '<tr><td colspan="2" class="text-center">Bu mahsulot hozircha omborda mavjud emas.</td></tr>'; return; }
+                items.forEach(item => {
+                    inventoryList.innerHTML += `<tr><td>${item.location_name}</td><td class="text-end fw-bold">${item.quantity} dona</td></tr>`;
+                });
+            };
+            fetchDetails();
+        });
+    </script>
+</body>
+</html>

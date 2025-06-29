@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jo'natmalarni Boshqarish - SCM-IDSS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style> body { background-color: #f8f9fa; } .table-hover tbody tr:hover { background-color: #f1f3f5; } .status-badge { font-size: 0.8rem; padding: 0.4em 0.7em; } </style>
+</head>
+<body>
+    <div class="container-fluid mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light"><h4 class="mb-0"><i class="bi bi-truck me-2"></i>Jo'natmalar Ro'yxati</h4></div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-5"><input type="text" id="searchInput" class="form-control" placeholder="Kuzatuv raqami bo'yicha qidiruv..."></div>
+                    <div class="col-md-4">
+                        <select id="statusFilter" class="form-select">
+                            <option selected value="">Barcha statuslar</option>
+                            <option value="LABEL_CREATED">Label Yaratildi</option>
+                            <option value="IN_TRANSIT">Yo'lda</option>
+                            <option value="OUT_FOR_DELIVERY">Yetkazish uchun chiqdi</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light"><tr><th>Buyurtma ID</th><th>Kuzatuv Raqami</th><th>Tashuvchi</th><th class="text-center">Holati</th><th>Kutilayotgan Sana</th><th class="text-center">Amallar</th></tr></thead>
+                        <tbody id="shipments-table-body"></tbody>
+                    </table>
+                </div>
+                <nav><ul class="pagination justify-content-end" id="pagination-container"></ul></nav>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = localStorage.getItem('accessToken');
+            if (!accessToken) { window.location.href = 'login.html'; return; }
+
+            const API_BASE_URL = 'http://localhost:9000/api/admin/shipments/'; // Port 9000 ga to'g'rilandi
+            const headers = { 'Authorization': `Bearer ${accessToken}` };
+            
+            const tableBody = document.getElementById('shipments-table-body');
+            const statusFilter = document.getElementById('statusFilter');
+            const searchInput = document.getElementById('searchInput');
+            const paginationContainer = document.getElementById('pagination-container');
+            let currentPage = 1;
+
+            const fetchShipments = async () => {
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center"><div class="spinner-border text-primary"></div></td></tr>`;
+                const params = new URLSearchParams({ page: currentPage, search: searchInput.value || '', status: statusFilter.value || '' });
+                try {
+                    const response = await fetch(`${API_BASE_URL}?${params}`, { headers });
+                    if (!response.ok) {
+                        if(response.status === 403) throw new Error('Bu sahifani ko\'rish uchun sizda ruxsat yo\'q.');
+                        throw new Error('Jo\'natmalarni yuklashda xatolik.');
+                    }
+                    const data = await response.json();
+                    renderTable(data.results || []);
+                    renderPagination(data);
+                } catch (error) {
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">${error.message}</td></tr>`;
+                }
+            };
+            const renderTable = (shipments) => {
+                if (!shipments.length) { tableBody.innerHTML = `<tr><td colspan="6" class="text-center">Jo'natmalar topilmadi.</td></tr>`; return; }
+                tableBody.innerHTML = ''; 
+                shipments.forEach(shipment => {
+                    const statusColors = { LABEL_CREATED: 'bg-secondary', IN_TRANSIT: 'bg-info text-dark', OUT_FOR_DELIVERY: 'bg-warning text-dark', DELIVERED: 'bg-success', FAILED_ATTEMPT: 'bg-danger', EXCEPTION: 'bg-danger' };
+                    const statusColor = statusColors[shipment.status] || 'bg-light text-dark';
+                    const estimatedDate = shipment.estimated_delivery_at ? new Date(shipment.estimated_delivery_at).toLocaleDateString('uz-UZ') : 'Noma\'lum';
+                    const row = `<tr>
+                            <td class="fw-bold">${shipment.customer_order_id.substring(0,8)}...</td>
+                            <td>${shipment.tracking_number || '-'}</td>
+                            <td>${shipment.carrier_name || '-'}</td>
+                            <td class="text-center"><span class="badge rounded-pill ${statusColor} status-badge">${shipment.status.replace(/_/g, ' ')}</span></td>
+                            <td>${estimatedDate}</td>
+                            <td class="text-center"><a href="order-detail.html?id=${shipment.customer_order_id}" class="btn btn-sm btn-outline-info" title="Buyurtmani ko'rish"><i class="bi bi-eye"></i></a></td>
+                        </tr>`;
+                    tableBody.insertAdjacentHTML('beforeend', row);
+                });
+            };
+            const renderPagination = (data) => {
+                paginationContainer.innerHTML = '';
+                if (data.previous) paginationContainer.innerHTML += `<li class="page-item"><a class="page-link" href="#" data-page="${currentPage - 1}">Oldingi</a></li>`;
+                if (data.next) paginationContainer.innerHTML += `<li class="page-item"><a class="page-link" href="#" data-page="${currentPage + 1}">Keyingi</a></li>`;
+            };
+            document.getElementById('searchButton').addEventListener('click', () => { currentPage = 1; fetchShipments(); });
+            searchInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { currentPage = 1; fetchShipments(); }});
+            statusFilter.addEventListener('change', () => { currentPage = 1; fetchShipments(); });
+            paginationContainer.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (e.target.matches('.page-link')) {
+                    const page = e.target.dataset.page;
+                    if (page) { currentPage = parseInt(page); fetchShipments(); }
+                }
+            });
+            fetchShipments();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yangi Buyurtma Yaratish (Sodda) - SCM-IDSS</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style> body { background-color: #f8f9fa; } </style>
+</head>
+<body>
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white"><h4 class="mb-0"><i class="bi bi-plus-circle-fill me-2"></i>Yangi Buyurtma Yaratish</h4></div>
+                    <div class="card-body p-4">
+                        <form id="create-order-form" novalidate>
+                            <h5 class="mb-3">1. Yetkazib Berish Ma'lumotlari</h5>
+                            <div class="mb-4"><label for="shipping-address" class="form-label">Yetkazib Berish Manzili</label><textarea class="form-control" id="shipping-address" rows="3" placeholder="Shahar, ko'cha, uy raqami..." required></textarea></div>
+                            <hr class="my-4">
+                            <h5 class="mb-3">2. Buyurtma Tarkibi</h5>
+                            <div id="order-items-container">
+                                <!-- Birinchi mahsulot qatori (shablon) -->
+                                <div class="row align-items-center order-item mb-3">
+                                    <div class="col-md-7"><label class="form-label">Mahsulot</label><select class="form-select product-select" required><option value="" selected disabled>Yuklanmoqda...</option></select></div>
+                                    <div class="col-md-4"><label class="form-label">Miqdori</label><input type="number" class="form-control quantity-input" value="1" min="1" required></div>
+                                    <div class="col-md-1 d-flex align-items-end"><button type="button" class="btn btn-outline-danger remove-item-btn" disabled><i class="bi bi-trash"></i></button></div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary mt-2" id="add-item-btn"><i class="bi bi-plus"></i> Yana mahsulot qo'shish</button>
+                            <hr class="my-4">
+                            <div class="d-flex justify-content-end align-items-center">
+                                <h5 class="me-3 mb-0">Umumiy Summa:</h5>
+                                <h4 class="fw-bold mb-0" id="total-amount-display">$0.00</h4>
+                            </div>
+                            <hr class="my-4">
+                            <div id="alert-container"></div>
+                            <div class="d-grid mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg" id="submit-order-btn">
+                                    <span id="submit-btn-text">Buyurtmani Yaratish</span>
+                                    <span id="submit-btn-spinner" class="spinner-border spinner-border-sm d-none"></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = localStorage.getItem('accessToken');
+            if (!accessToken) { window.location.href = 'login.html'; return; }
+
+            const API = {
+                PRODUCTS: 'http://localhost:8080/api/admin/products/',
+                ORDERS: 'http://localhost:8090/api/admin/orders/'
+            };
+            const headers = { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+
+            const form = document.getElementById('create-order-form');
+            const itemsContainer = document.getElementById('order-items-container');
+            const addItemBtn = document.getElementById('add-item-btn');
+            const submitBtn = document.getElementById('submit-order-btn');
+            const alertContainer = document.getElementById('alert-container');
+            const totalAmountDisplay = document.getElementById('total-amount-display');
+            
+            let productOptionsHtml = '';
+
+            const showAlert = (message, type = 'danger') => {
+                alertContainer.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show">${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+            };
+            const setLoadingState = (isLoading) => {
+                submitBtn.disabled = isLoading;
+                document.getElementById('submit-btn-text').style.display = isLoading ? 'none' : 'inline';
+                document.getElementById('submit-btn-spinner').classList.toggle('d-none', !isLoading);
+            };
+
+            const fetchProducts = async () => {
+                try {
+                    const response = await fetch(API.PRODUCTS, { headers });
+                    if (!response.ok) throw new Error('Mahsulotlarni yuklab bo\'lmadi.');
+                    const data = await response.json();
+                    
+                    const products = data.results || data; 
+                    if (!Array.isArray(products)) throw new Error("API'dan kutilgan mahsulotlar ro'yxati kelmadi.");
+
+                    productOptionsHtml = products.map(p => `<option value="${p.id}" data-price="${p.price}">${p.name}</option>`).join('');
+                    
+                    document.querySelectorAll('.product-select').forEach(sel => {
+                        sel.innerHTML = '<option value="" selected disabled>Mahsulotni tanlang...</option>' + productOptionsHtml;
+                    });
+                
+                } catch (error) { showAlert(error.message, 'danger'); }
+            };
+            
+            const calculateTotal = () => {
+                let total = 10;
+                document.querySelectorAll('.order-item').forEach(item => {
+                    const productSelect = item.querySelector('.product-select');
+                    const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
+                    const selectedOption = productSelect.options[productSelect.selectedIndex];
+                    const price = parseFloat(selectedOption.dataset.price) || 0;
+                    total += price * quantity;
+                });
+                totalAmountDisplay.textContent = `$${total.toFixed(2)}`;
+            };
+
+            const addNewItem = () => {
+                const newItemHtml = `<div class="row align-items-center order-item mb-3">
+                        <div class="col-md-7"><select class="form-select product-select" required><option value="" selected disabled>Mahsulotni tanlang...</option>${productOptionsHtml}</select></div>
+                        <div class="col-md-4"><input type="number" class="form-control quantity-input" value="1" min="1" required></div>
+                        <div class="col-md-1 d-flex align-items-end"><button type="button" class="btn btn-outline-danger remove-item-btn"><i class="bi bi-trash"></i></button></div>
+                    </div>`;
+                itemsContainer.insertAdjacentHTML('beforeend', newItemHtml);
+            };
+
+            itemsContainer.addEventListener('change', calculateTotal);
+            itemsContainer.addEventListener('input', calculateTotal);
+            itemsContainer.addEventListener('click', e => {
+                if (e.target.closest('.remove-item-btn')) {
+                    if (itemsContainer.querySelectorAll('.order-item').length > 1) {
+                         e.target.closest('.order-item').remove();
+                         calculateTotal();
+                    }
+                    else showAlert('Kamida bitta mahsulot bo\'lishi kerak.', 'warning');
+                }
+            });
+
+            form.addEventListener('submit', async e => {
+                e.preventDefault();
+                alertContainer.innerHTML = '';
+                const shippingAddress = document.getElementById('shipping-address').value;
+                if (!shippingAddress.trim()) { showAlert('Yetkazib berish manzilini kiriting.', 'warning'); return; }
+                
+                let totalAmount = 85;
+                const items = [];
+                let hasError = false;
+
+                document.querySelectorAll('.order-item').forEach(item => {
+                    const productSelect = item.querySelector('.product-select');
+                    const quantityInput = item.querySelector('.quantity-input');
+                    const selectedOption = productSelect.options[productSelect.selectedIndex];
+                    const price = parseFloat(selectedOption.dataset.price);
+
+                    if (productSelect.value && quantityInput.value > 0) {
+                        items.push({ 
+                            product_id: productSelect.value, 
+                            quantity: parseInt(quantityInput.value),
+                            unit_price: price.toFixed(2)
+                        });
+                        totalAmount += price * parseInt(quantityInput.value);
+                    } else { hasError = true; }
+                });
+                if (hasError) { showAlert('Barcha qatorlarni to\'ldiring.', 'warning'); return; }
+
+                const orderData = {
+                    shipping_address: shippingAddress,
+                    items: [{"product_id":2,"quantity": 5,"unit_price": "10.00"}],
+                    customer_id: 1, // Siz aytgandek, har doim 1 bo'ladi
+                    total_amount: 10
+                };
+
+                setLoadingState(true);
+                try {
+                    const response = await fetch(API.ORDERS, { method: 'POST', headers, body: JSON.stringify(orderData) });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        const errorMessage = Object.values(data).flat().join(' ');
+                        throw new Error(errorMessage || 'Buyurtma yaratishda xatolik.');
+                    }
+                    showAlert('Buyurtma muvaffaqiyatli yaratildi!', 'success');
+                    setTimeout(() => window.location.href = `dashboard.html`, 2000);
+                } catch (error) { showAlert(error.message, 'danger'); } 
+                finally { setLoadingState(false); }
+            });
+
+            addItemBtn.addEventListener('click', addNewItem);
+            fetchProducts();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mening Profilim - SCM-IDSS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style> body { background-color: #f8f9fa; } </style>
+</head>
+<body>
+    <div class="container mt-5 mb-5">
+        <div class="row d-flex justify-content-center">
+            <div class="col-md-9">
+                <div class="card p-3 p-md-4 shadow-sm">
+                    <div class="d-flex flex-column align-items-center text-center">
+                        <img class="rounded-circle mt-3" width="150px" src="https://placehold.co/150x150/EBF4FF/7645D9?text=U" alt="Foydalanuvchi rasmi">
+                        <span class="fw-bold fs-4 mt-3" id="profileUsername"></span>
+                        <span class="text-muted" id="profileEmail"></span>
+                    </div>
+                    <hr class="my-4">
+                    
+                    <div id="alert-container"></div>
+                    
+                    <form id="profile-form" class="mt-3">
+                        <h5 class="mb-3"><i class="bi bi-person-fill me-2"></i>Shaxsiy Ma'lumotlar</h5>
+                        <div class="row mt-3">
+                            <div class="col-md-6 mb-3"><label class="form-label">Ism</label><input type="text" id="firstName" class="form-control" placeholder="Ismingizni kiriting"></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">Familiya</label><input type="text" id="lastName" class="form-control" placeholder="Familiyangizni kiriting"></div>
+                        </div>
+                        <div class="mt-3 text-end"><button class="btn btn-primary" type="submit">O'zgarishlarni Saqlash</button></div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <form id="password-form" class="mt-3">
+                        <h5 class="mb-3"><i class="bi bi-key-fill me-2"></i>Parolni O'zgartirish</h5>
+                        <div class="row mt-3">
+                            <div class="col-md-12 mb-3"><label class="form-label">Joriy Parol</label><input type="password" id="currentPassword" class="form-control" placeholder="Joriy parolni kiriting" required></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">Yangi Parol</label><input type="password" id="newPassword" class="form-control" placeholder="Yangi parolni kiriting" required></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">Parolni Tasdiqlang</label><input type="password" id="confirmPassword" class="form-control" placeholder="Yangi parolni takrorlang" required></div>
+                        </div>
+                        <div class="mt-3 text-end"><button class="btn btn-primary" type="submit">Parolni Yangilash</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = localStorage.getItem('accessToken');
+            if (!accessToken) { window.location.href = 'login.html'; return; }
+
+            const API = {
+                PROFILE: 'http://localhost:9001/api/auth/me/',
+                CHANGE_PASSWORD: 'http://localhost:9001/api/auth/password/change/' // Backend'da shunday endpoint yaratilishi kerak
+            };
+            const headers = { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+            
+            const profileForm = document.getElementById('profile-form');
+            const passwordForm = document.getElementById('password-form');
+            const alertContainer = document.getElementById('alert-container');
+
+            const showAlert = (message, type = 'danger') => {
+                alertContainer.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+                window.scrollTo(0, 0); // Xabarni ko'rish uchun yuqoriga o'tish
+            };
+
+            const fetchProfile = async () => {
+                try {
+                    const response = await fetch(API.PROFILE, { headers });
+                    if (!response.ok) throw new Error('Profil ma\'lumotlarini yuklab bo\'lmadi.');
+                    const user = await response.json();
+                    
+                    document.getElementById('profileUsername').textContent = user.username;
+                    document.getElementById('profileEmail').textContent = user.email;
+                    document.getElementById('firstName').value = user.first_name || '';
+                    document.getElementById('lastName').value = user.last_name || '';
+
+                } catch (error) {
+                    showAlert(error.message);
+                }
+            };
+            
+            profileForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = {
+                    first_name: document.getElementById('firstName').value,
+                    last_name: document.getElementById('lastName').value
+                };
+                try {
+                    const response = await fetch(API.PROFILE, {
+                        method: 'PATCH', // PATCH faqat o'zgargan maydonlarni yuboradi
+                        headers,
+                        body: JSON.stringify(data)
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(Object.values(errorData).join(' '));
+                    }
+                    showAlert('Ma\'lumotlaringiz muvaffaqiyatli yangilandi.', 'success');
+                } catch (error) {
+                    showAlert(error.message);
+                }
+            });
+
+            passwordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                if (newPassword !== confirmPassword) {
+                    showAlert('Yangi parollar bir-biriga mos kelmadi.', 'warning');
+                    return;
+                }
+
+                const data = {
+                    old_password: document.getElementById('currentPassword').value,
+                    new_password: newPassword,
+                };
+                
+                try {
+                    // Bu endpoint backend'da yaratilishi kerak
+                    const response = await fetch(API.CHANGE_PASSWORD, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(data)
+                    });
+
+                    const responseData = await response.json();
+                    
+                    if (!response.ok) {
+                         throw new Error(responseData.detail || Object.values(responseData).join(' '));
+                    }
+
+                    showAlert('Parolingiz muvaffaqiyatli o\'zgartirildi!', 'success');
+                    passwordForm.reset();
+
+                } catch (error) {
+                     showAlert(error.message, 'danger');
+                }
+            });
+            
+            fetchProfile();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mahsulotlarni Boshqarish - SCM-IDSS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style> body { background-color: #f8f9fa; } .table-hover tbody tr:hover { background-color: #f1f3f5; } </style>
+</head>
+<body>
+
+    <div class="container-fluid mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-box-seam me-2"></i>Mahsulotlar Ro'yxati</h4>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#productModal">
+                    <i class="bi bi-plus-circle me-2"></i>Yangi Mahsulot Qo'shish
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3"><div class="col-md-6"><input type="text" id="searchInput" class="form-control" placeholder="SKU yoki nom bo'yicha qidiruv..."></div></div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light"><tr><th>SKU</th><th>Mahsulot Nomi</th><th>Kategoriya</th><th>Narxi</th><th class="text-center">Amallar</th></tr></thead>
+                        <tbody id="products-table-body"></tbody>
+                    </table>
+                </div>
+                <nav><ul class="pagination justify-content-end" id="pagination-container"></ul></nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mahsulot qo'shish/tahrirlash uchun Modal Oyna -->
+    <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title" id="productModalLabel">Yangi Mahsulot</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body">
+                    <form id="product-form" novalidate>
+                        <input type="hidden" id="productId">
+                        <div id="modal-alert-container"></div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3"><label for="productSku" class="form-label">SKU</label><input type="text" class="form-control" id="productSku" required></div>
+                            <div class="col-md-6 mb-3"><label for="productName" class="form-label">Nomi</label><input type="text" class="form-control" id="productName" required></div>
+                        </div>
+                        <div class="mb-3"><label for="productDescription" class="form-label">Tavsifi</label><textarea class="form-control" id="productDescription" rows="3"></textarea></div>
+                        <div class="row">
+                             <div class="col-md-6 mb-3"><label for="productCategory" class="form-label">Kategoriya</label><select class="form-select" id="productCategory"></select></div>
+                             <div class="col-md-6 mb-3"><label for="productPrice" class="form-label">Narxi</label><input type="number" step="0.01" class="form-control" id="productPrice" required></div>
+                        </div>
+                        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor Qilish</button><button type="submit" class="btn btn-primary" id="save-product-btn">Saqlash</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = localStorage.getItem('accessToken');
+            if (!accessToken) { window.location.href = 'login.html'; return; }
+
+            const API = {
+                PRODUCTS: 'http://localhost:8080/api/admin/products/',
+                CATEGORIES: 'http://localhost:8080/api/admin/categories/'
+            };
+            const headers = { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+
+            const tableBody = document.getElementById('products-table-body');
+            const searchInput = document.getElementById('searchInput');
+            const paginationContainer = document.getElementById('pagination-container');
+            
+            const productModalEl = document.getElementById('productModal');
+            const productModal = new bootstrap.Modal(productModalEl);
+            const productForm = document.getElementById('product-form');
+            const modalAlertContainer = document.getElementById('modal-alert-container');
+            const categorySelect = document.getElementById('productCategory');
+
+            let currentPage = 1;
+
+            const showAlert = (message, type = 'danger') => {
+                modalAlertContainer.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+            };
+
+            const fetchAPI = async (url, options = {}) => {
+                const response = await fetch(url, { headers, ...options });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) window.location.href = 'login.html';
+                    const errorData = await response.json().catch(() => ({ detail: `Server xatosi: ${response.status}` }));
+                    throw new Error(errorData.detail || Object.values(errorData).flat().join(' '));
+                }
+                if (response.status === 204) return null;
+                return response.json();
+            };
+
+            const fetchProducts = async () => {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary"></div></td></tr>`;
+                const params = new URLSearchParams({ page: currentPage, search: searchInput.value || '' });
+                try {
+                    const data = await fetchAPI(`${API.PRODUCTS}?${params}`);
+                    renderTable(data.results || []);
+                    renderPagination(data);
+                } catch (error) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${error.message}</td></tr>`;
+                }
+            };
+            
+            const renderTable = (products) => {
+                tableBody.innerHTML = '';
+                if (!products.length) { tableBody.innerHTML = `<tr><td colspan="5" class="text-center">Mahsulotlar topilmadi.</td></tr>`; return; }
+                products.forEach(p => {
+                    const row = `<tr>
+                            <td class="fw-bold">${p.sku}</td>
+                            <td>${p.name}</td>
+                            <td><span class="badge bg-secondary">${p.category_name || 'N/A'}</span></td>
+                            <td>$${p.price}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-warning edit-btn" data-id="${p.id}"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${p.id}"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>`;
+                    tableBody.insertAdjacentHTML('beforeend', row);
+                });
+            };
+
+            const renderPagination = (data) => {
+                paginationContainer.innerHTML = '';
+                if (data.previous) paginationContainer.innerHTML += `<li class="page-item"><a class="page-link" href="#" data-page="${currentPage - 1}">Oldingi</a></li>`;
+                if (data.next) paginationContainer.innerHTML += `<li class="page-item"><a class="page-link" href="#" data-page="${currentPage + 1}">Keyingi</a></li>`;
+            };
+
+            const fetchCategories = async () => {
+                try {
+                    const data = await fetchAPI(API.CATEGORIES);
+                    categorySelect.innerHTML = '<option value="">Kategoriya tanlanmagan</option>';
+                    (data.results || []).forEach(cat => { categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`; });
+                } catch(error) { console.error("Kategoriyalarni yuklab bo'lmadi", error); }
+            };
+
+            const handleFormSubmit = async (e) => {
+                e.preventDefault();
+                const productId = productForm.productId.value;
+                const url = productId ? `${API.PRODUCTS}${productId}/` : API.PRODUCTS;
+                const method = productId ? 'PUT' : 'POST';
+                const productData = {
+                    sku: productForm.productSku.value, name: productForm.productName.value,
+                    description: productForm.productDescription.value, price: productForm.productPrice.value,
+                    category: productForm.productCategory.value || null,
+                };
+                try {
+                    await fetchAPI(url, { method, body: JSON.stringify(productData) });
+                    productModal.hide();
+                    fetchProducts();
+                } catch (error) { showAlert(error.message); }
+            };
+
+            const handleEditClick = async (id) => {
+                try {
+                    const product = await fetchAPI(`${API.PRODUCTS}${id}/`);
+                    productForm.productId.value = product.id;
+                    productForm.productSku.value = product.sku;
+                    productForm.productName.value = product.name;
+                    productForm.productDescription.value = product.description;
+                    productForm.productPrice.value = product.price;
+                    productForm.productCategory.value = product.category || '';
+                    document.getElementById('productModalLabel').textContent = "Mahsulotni Tahrirlash";
+                    productModal.show();
+                } catch (error) { alert(`Xatolik: ${error.message}`); }
+            };
+
+            const handleDeleteClick = async (id) => {
+                if (confirm("Haqiqatan ham bu mahsulotni o'chirmoqchimisiz?")) {
+                    try {
+                        await fetchAPI(`${API.PRODUCTS}${id}/`, { method: 'DELETE' });
+                        fetchProducts();
+                    } catch (error) { alert(`Xatolik: ${error.message}`); }
+                }
+            };
+
+            searchInput.addEventListener('keyup', e => { if (e.key === 'Enter') { currentPage = 1; fetchProducts(); } });
+            paginationContainer.addEventListener('click', e => {
+                e.preventDefault();
+                if (e.target.matches('.page-link')) {
+                    const page = e.target.dataset.page;
+                    if (page) { currentPage = parseInt(page); fetchProducts(); }
+                }
+            });
+            productForm.addEventListener('submit', handleFormSubmit);
+            tableBody.addEventListener('click', e => {
+                const editBtn = e.target.closest('.edit-btn');
+                const deleteBtn = e.target.closest('.delete-btn');
+                if (editBtn) handleEditClick(editBtn.dataset.id);
+                if (deleteBtn) handleDeleteClick(deleteBtn.dataset.id);
+            });
+            document.getElementById('productModal').addEventListener('hidden.bs.modal', () => {
+                productForm.reset();
+                productForm.productId.value = '';
+                document.getElementById('productModalLabel').textContent = "Yangi Mahsulot";
+                modalAlertContainer.innerHTML = '';
+            });
+
+            fetchProducts();
+            fetchCategories();
+        });
+    </script>
+</body>
+</html>
